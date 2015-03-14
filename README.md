@@ -4,7 +4,7 @@
 $ npm install -g harian
 ```
 
-[image](http://g.recordit.co/6HFIFhy5gA.gif)
+![image](http://g.recordit.co/6HFIFhy5gA.gif)
 
 ## early release
 
