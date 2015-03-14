@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "description": "harian cli",
   "main": "index.js",
-  "bin": "bin/harian",
-  "scripts": {
-    "test": "make test"
+  "bin": {
+    "harian": "bin/harian"
   },
   "keywords": [
     "harian",
@@ -23,5 +22,17 @@
     "tar-stream": "^1.1.2",
     "through": "^2.3.6",
     "vercmp": "^1.0.0"
-  }
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/diorahman/harian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/diorahman/harian/issues"
+  },
+  "homepage": "https://github.com/diorahman/harian"
 }
