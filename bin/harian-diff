@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+var program = require('commander');
+var harian = require('..');
+
+program
+  .parse(process.argv);
+
+if (program.args.length != 2) //FIXME: validation
+  console.log('needs `a` and `b` to be compared.');
+
+harian.diff(program.args);

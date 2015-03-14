@@ -1,0 +1,8 @@
+#!/usr/bin/env node
+var program = require('commander');
+var harian = require('..');
+
+program
+  .option('-s, --status <status>', 'status')
+    .parse(process.argv);
+harian.ls();

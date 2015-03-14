@@ -1,0 +1,27 @@
+{
+  "name": "harian",
+  "version": "1.0.0",
+  "description": "harian cli",
+  "main": "index.js",
+  "bin": "bin/harian",
+  "scripts": {
+    "test": "make test"
+  },
+  "keywords": [
+    "harian",
+    "blankon",
+    "livedvd"
+  ],
+  "author": "Dhi Aurrahman <diorahman@rockybars.com>",
+  "license": "MIT",
+  "dependencies": {
+    "async": "^0.9.0",
+    "byline": "^4.2.1",
+    "cli-color": "^0.3.2",
+    "commander": "^2.7.1",
+    "hyperquest": "^1.0.1",
+    "tar-stream": "^1.1.2",
+    "through": "^2.3.6",
+    "vercmp": "^1.0.0"
+  }
+}
