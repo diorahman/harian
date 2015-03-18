@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 var program = require('commander');
+var pkg = require('../package.json');
 
 program
-  .version('1.0.0') // FIXME: get this from package.json
+  .version(pkg.version) // FIXME: get this from package.json
   .command('ls', 'list all available builds, with optional status filter.')
   .command('diff <a> <b>', 'diff-ing a and b.')
+  .command('sid <a>', 'diff-ing a with sid.')
   .parse(process.argv);
 

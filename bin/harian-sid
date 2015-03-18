@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+var program = require('commander');
+var harian = require('..');
+
+program
+  .parse(process.argv);
+
+if (program.args.length != 1) //FIXME: validation
+  return console.log('needs `a` to be compared with sid');
+
+harian.sid(program.args);

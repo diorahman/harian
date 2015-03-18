@@ -1,11 +1,23 @@
+var JSONStream = require('JSONStream');
 var request = require('hyperquest');
+var es = require('event-stream');
 var through = require('through');
 var byline = require('byline');
 var vercmp = require('vercmp');
 var clc = require('cli-color');
 var async = require('async');
+var _ = require('lodash');
 
 var ROOTURL = 'http://cdimage.blankonlinux.or.id/blankon/livedvd-harian/';
+var DEBIANURL = 'http://ftp.debian.org/debian/dists/sid/main/binary-amd64/Packages.gz';
+var RANIURL = 'http://rani.blankon.in:8000/packages';
+
+var Debian = require('./debian');
+var Blankon = require('./blankon'); 
+
+function hasBlankon1(version) {
+  return version.indexOf('blankon1') >= 0;
+}
 
 function stream(sink, end) {
   end = end || function(){};
@@ -55,19 +67,32 @@ function listRootWithStatus(cb) {
     if (err)
       return cb(err);
     var contents = [];
-    for (var content in list)
-      contents.push(content);
+    for (var key in list) {
+      contents.push(list[key]);
+    }
+    contents.sort(function(a, b) {
+      if (a.content == 'current')
+        return 1;
+      var dateA = new Date(a.date).valueOf();
+      var dateB = new Date(b.date).valueOf();
+      if (dateA > dateB)
+        return 1;
+      if (dateA < dateB)
+        return -1;
+      return 0;
+    });
     async.mapSeries(contents, status, function(err, statuses) {
       for (var i = 0; i < statuses.length; i++) {
         var stat = statuses[i];
-        list[contents[i]].status = stat;
+        list[contents[i].content].status = stat;
       }
-      cb(null, list);
+      cb(null, contents);
     });
   });
 }
 
-function status(date, cb) {
+function status(row, cb) {
+  var date = row.content || row;
   cb = cb || function(){};
   // trailling '/'
   var url = ROOTURL + date + '/';
@@ -111,6 +136,83 @@ function difference(a, b, cb) {
     var urlB = ROOTURL + b + '/' + listName;
     compare(request(urlA), request(urlB), cb);
   });
+}
+
+function compareWithSid(a, cb) {
+  //
+  process.stdout.write('--> please wait ...\r'); 
+  // get data from rani
+  var raniRequest = request(RANIURL);
+  raniRequest
+    .pipe(JSONStream.parse())
+    .pipe(es.mapSync(function(repoPackages) {
+      var refPackages = {};
+      var count = 0;
+      var countMatch = 0;
+      var result = {
+        equal: [],
+        greater: [],
+        less: []
+      };
+      // get data from debian sid
+      var debian = new Debian();
+      debian.resume();
+      debian.on('error', cb); 
+      debian.on('data', function(debianPackage){
+        var found = _.find(repoPackages, function(package){
+          return package.name == debianPackage.name;
+        });
+        
+        if (found) {
+          countMatch++;
+          refPackages[debianPackage.name] = {
+            name: debianPackage.name,
+            version: debianPackage.version
+          }
+        }
+        process.stdout.write('--> ' + debianPackage.name.substring(0, 4) + '... ' + count++ + '(' + countMatch + ')\r'); 
+      });
+
+      debian.on('end', function() {
+        status(a, function(err, success) {
+          if (err)
+            return cb(err);
+          if (!success)
+            return cb(new Error('`a` should be a successful build'));
+
+          result.blankonUrl = 'http://cdimage.blankonlinux.or.id/blankon/livedvd-harian/' + a + '/tambora-desktop-amd64.list';
+          console.log(result.blankonUrl);
+
+          var blankon = new Blankon({url: result.blankonUrl});
+          blankon.resume();
+
+          blankon.on('error', cb);
+
+          blankon.on('data', function(blankonPackage){
+            if (refPackages[blankonPackage.name]) {
+              var version = blankonPackage.version;
+              var refVersion = refPackages[blankonPackage.name].version;
+              var cmp = vercmp(blankonPackage.version, refVersion);
+              var obj = {
+                name: blankonPackage.name,
+                blankonVersion: blankonPackage.version,
+                sidVersion: refVersion,
+                hasBlankon1Version: hasBlankon1(version)
+              };
+              if (cmp == 0)
+                result.equal.push(obj);
+              if (cmp > 0)
+                result.greater.push(obj);
+              if (cmp < 0)
+                result.less.push(obj);
+            }
+          });
+          blankon.on('end', function() {
+            cb(null, result);
+          });  
+        });
+      });
+    }));
 }
 
 function compare(a, b, cb) {
@@ -188,8 +290,10 @@ function ls() {
     if (err)
       return console.log(err);
     var i = 0;
-    for (var row in list)
-      console.log(i++ + '. ' + list[row].date + ' - ' + (list[row].status ? clc.green(row) : clc.red(row)));
+    for (var i = 0; i < list.length; i++) {
+      var row = list[i];
+      console.log(i + '. ' + row.date + ' - ' + (row.status ? clc.green(row.content) : clc.red(row.content)));
+    }
   });
 }
 
@@ -197,7 +301,7 @@ function diff(args) {
   difference(args[0], args[1], function(err, results){
     if (err)
       return console.log(err);
-    console.log(args[0] + ' is ... than ' + args[1]);
+    console.log(args[0] + ' vs. ' + args[1]);
     for (var type in results) {
       console.log(type + ' (' +  results[type].length + '):');
       for (var i = 0; i < results[type].length; i++) {
@@ -208,8 +312,24 @@ function diff(args) {
   });
 }
 
+function sid(args) {
+  compareWithSid(args[0], function(err, res) {
+    delete res['blankonUrl'];
+    delete res['equal'];
+    for (var k in res) {
+      console.log(k + ' (' + res[k].length + '):');
+      for (var i = 0; i < res[k].length; i++) {
+        var package = res[k][i];
+        console.log('  ' + i + '. ' + package.name + ' ' + clc.green(package.blankonVersion) + ' ' + clc.blue(package.sidVersion))
+      }
+    }
+  
+  });
+}
+
 module.exports = {
   diff: diff,
-  ls: ls
+  ls: ls,
+  sid: sid
 };
 
