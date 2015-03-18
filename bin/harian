@@ -9,3 +9,5 @@ program
   .command('sid <a>', 'diff-ing a with sid.')
   .parse(process.argv);
 
+if (process.argv.slice(2).length < 1)
+    program.outputHelp();
