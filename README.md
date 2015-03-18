@@ -1,5 +1,7 @@
 # harian
 
+You need to install node.js or io.js :)
+
 ```
 $ npm install -g harian
 ```
